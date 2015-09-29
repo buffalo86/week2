@@ -48,8 +48,21 @@ Don't forget to show your works, plots included.
 When speaking of Machine Learning, there are two functions or algorithms involved.
 Describe and differentiate the algorithms from the function.
 
+Answer:  An  algorithm is a method used to select a prediction function from a 
+space of possible prediction functions.  The prediction function itself is used to map
+input data to predicted outcomes.  Another function is defined to measure 
+the error of the prediction function (for example RMSE).
+
+
 
 # 2. RMSE and MAE
 
 Why is RMSE preferrable to MAE?  
 When is MAE better? 
+
+ANSWER:  RMSE is generally preferable to MAE when it is appropriate to penalize
+large errors disproportionately to small ones (square of the error as opposed 
+to the absolute value of the error).I've also read that RMSE is particularly useful
+when one expects the errors to follow a gaussian distribution.  MAE may be better in cases
+where larger errors are not greatly worse than small ones.  MAE is also less sensative to outliers.
+

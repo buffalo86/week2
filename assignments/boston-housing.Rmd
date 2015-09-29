@@ -12,10 +12,244 @@ file, a presentation, html file, etc. Please just submit the code.
 library(mlbench)
 library(magrittr)
 library(ggplot2)
+library(car)
+library(MASS)
+library(DAAG)
 data(BostonHousing)
+```
+### Summarize dataset
+```r
+str(BostonHousing)
+summary(BostonHousing)
+```
+No missing data. No negative values.  One categorical variable.
 
-# Place your code here:
+### Examine each variable and each predictor against the response variable
+
+#### medv
+
+``` r
+qplot(BostonHousing$medv)
 
 ```
+Normalish, with weird peak at medv = 50
+
+#### crim
+```r
+qplot(BostonHousing$crim)
+ggplot( aes(x=crim, y=medv), data=BostonHousing ) + geom_point() + geom_smooth( method=lm)
+```
+crim is right skewed.  Also, linear function medv ~ crim not ideal.
+
+#### zn
+```r
+qplot(BostonHousing$zn)
+ggplot( aes(x=zn, y=medv), data=BostonHousing ) + geom_point() + geom_smooth( method=lm)
+```
+
+#### chas
+```r
+qplot(BostonHousing$chas)
+plot(BostonHousing$chas,BostonHousing$medv)
+```
+Not many houses on the river.  Is this imbalance important?  Houses on the river
+more valuable, but with outliers when chas = 0
+
+#### indus
+```r
+qplot(BostonHousing$indus)
+ggplot( aes(x=indus, y=medv), data=BostonHousing ) + geom_point() + geom_smooth( method=lm)
+```
+
+#### nox
+```r
+qplot(BostonHousing$nox)
+ggplot( aes(x=nox, y=medv), data=BostonHousing ) + geom_point() + geom_smooth( method=lm)
+```
+
+#### rm
+```r
+qplot(BostonHousing$rm)
+ggplot( aes(x=rm, y=medv), data=BostonHousing ) + geom_point() + geom_smooth( method=lm)
+```
+First predictor so far that looks quite normally distributed
+
+#### age
+```r
+qplot(BostonHousing$age)
+ggplot( aes(x=age, y=medv), data=BostonHousing ) + geom_point() + geom_smooth( method=lm)
+```
+Left skewed
+
+#### dis
+```r
+qplot(BostonHousing$dis)
+ggplot( aes(x=dis, y=medv), data=BostonHousing ) + geom_point() + geom_smooth( method=lm)
+```
+Right skew, linear function misses big cluster of points at low values of dis
+
+#### rad
+```r
+qplot(BostonHousing$rad)
+ggplot( aes(x=rad, y=medv), data=BostonHousing ) + geom_point() + geom_smooth( method=lm)
+```
+
+#### tax
+```r
+qplot(BostonHousing$tax)
+ggplot( aes(x=tax, y=medv), data=BostonHousing ) + geom_point() + geom_smooth( method=lm)
+```
+
+#### ptratio
+```r
+qplot(BostonHousing$ptratio)
+ggplot( aes(x=ptratio, y=medv), data=BostonHousing ) + geom_point() + geom_smooth( method=lm)
+```
+
+#### b
+```r
+qplot(BostonHousing$b)
+ggplot( aes(x=b, y=medv), data=BostonHousing ) + geom_point() + geom_smooth( method=lm)
+```
+
+#### lstat
+```r
+qplot(BostonHousing$lstat)
+ggplot( aes(x=lstat, y=medv), data=BostonHousing ) + geom_point() + geom_smooth( method=lm)
+```
+Right skewed, looks like a strong predictor
+
+### One suspects the predictors are highly correlated
+```r
+cor(BostonHousing[-c(4,14)])
+```
+And in many cases they are.
+
+### Error evaluation function (RMSE)
+```r
+rmse <- function(y,yhat)
+  (y-yhat)^2 %>% mean %>% sqrt
+```
+### Build a first model
+```r
+fit.1 <- lm(medv ~ ., data = BostonHousing)
+summary(fit.1)
+```
+Model is very significant. Median of residuals close to zero. indus and age not significant.
+
+```r
+par(mfrow=c(2,1)) 
+hist(BostonHousing$medv)
+hist(fit.1$fitted.values)
+par(mfrow=c(1,1))
+
+ggplot( aes(x=medv, y=fit.1$fitted.values), data=BostonHousing ) + geom_point() + coord_equal( ylim=c(0,60), xlim=c(0,60) ) + geom_abline( slope=1, intercept=0, color="red") + xlab( "Median Value") + ylab("Estimated Median Value") + theme( plot.background = element_blank() )
+```
+Fitted values fairly close to actual values, with notable exceptions at 
+medv close to 50
+
+```r
+hist(fit.1$residuals)
+```
+Residuals look fairly normal
+
+```r
+vif(fit.1)
+```
+
+There is some multicollinearity:  rad, tax
+```r
+rmse(BostonHousing$medv,fit.1$fitted.values)
+```
+4.68 RMSE
+
+### Remove insignificant variables and try again
+```r
+fit.2 <- lm(medv ~ . -indus -age, data = BostonHousing)
+summary(fit.2)
+par(mfrow=c(2,1)) 
+hist(BostonHousing$medv)
+hist(fit.2$fitted.values)
+par(mfrow=c(1,1))
+
+ggplot( aes(x=medv, y=fit.2$fitted.values), data=BostonHousing ) + geom_point() + coord_equal( ylim=c(0,60), xlim=c(0,60) ) + geom_abline( slope=1, intercept=0, color="red") + xlab( "Median Value") + ylab("Estimated Median Value") + theme( plot.background = element_blank() )
+
+hist(fit.2$residuals)
+vif(fit.2)
+rmse(BostonHousing$medv,fit.2$fitted.values)
+```
+Same RMSE, now no insignificant variables.  I've read that collinearlity 
+is not as problematic when model is for prediction but not for interpreting 
+individual coefficients.
+
+So far, there have been some negative predicted values.  That feels weird.
+
+### These predictors probably interact. Build a model with interactions
+
+```r
+fit.3 <- lm(medv ~ .^2,  data = BostonHousing)
+summary(fit.3)
+```
+No more negative predictions.  Since negative median values are very unlikely, 
+I assume this is good.
+
+### Many insignificant terms, try to simplify
+```r
+fit.4 <- stepAIC( fit.3, scope=list(lower=medv~1, upper=medv~.^2), direction="backward" )
+summary(fit.4)
+
+par(mfrow=c(2,1)) 
+hist(BostonHousing$medv)
+hist(fit.4$fitted.values)
+par(mfrow=c(1,1))
+
+ggplot( aes(x=medv, y=fit.4$fitted.values), data=BostonHousing ) + geom_point() + coord_equal( ylim=c(0,60), xlim=c(0,60) ) + geom_abline( slope=1, intercept=0, color="red") + xlab( "Median Value") + ylab("Estimated Median Value") + theme( plot.background = element_blank() )
 
 
+hist(fit.4$residuals)
+vif(fit.4)
+rmse(BostonHousing$medv,fit.4$fitted.values)
+```
+Much lower MSRE  at 2.62 and very high r-squared.  But, sort of high ratio of predictors to observations and I worry about over fitting. Many ginormous VIFs; model is for prediction. . .
+
+### Remove insignificant interaction terms
+```r
+fit.5 <- update(fit.4, ~. 
+               -crim:zn
+               -crim:rad
+               -crim:tax
+               -nox:dis
+               -nox:lstat
+               -rad:lstat
+                )
+               
+summary(fit.5)
+par(mfrow=c(2,1)) 
+hist(BostonHousing$medv)
+hist(fit.5$fitted.values)
+par(mfrow=c(1,1))
+
+ggplot( aes(x=medv, y=fit.5$fitted.values), data=BostonHousing ) + geom_point() + coord_equal( ylim=c(0,60), xlim=c(0,60) ) + geom_abline( slope=1, intercept=0, color="red") + xlab( "Median Value") + ylab("Estimated Median Value") + theme( plot.background = element_blank() )
+
+
+hist(fit.5$residuals)
+vif(fit.5)
+rmse(BostonHousing$medv,fit.5$fitted.values)
+```
+Even more ginormous VIFs, worse error than fit.4.  Wonder if it would have been okay to leave in insignificant interactions, especially since I have a new set of them now.
+
+#### Try cross-validation. (Don't fully understand what I'm trying to do here. But looking I think for the model with lowerst 'ms')
+```r
+cv.1 <- CVlm(data=BostonHousing,form.lm = fit.1, m=10)
+cv.2 <- CVlm(data=BostonHousing,form.lm = fit.2, m=10)
+cv.3 <- CVlm(data=BostonHousing,form.lm = fit.3, m=10)
+cv.4 <- CVlm(data=BostonHousing,form.lm = fit.4, m=10)
+cv.5 <- CVlm(data=BostonHousing,form.lm = fit.5, m=10)
+```
+Model 4 best (I think).  Estimated `attr(cv.4,'ms')  %>% sqrt` (3.22) RMSE,
+Indicating some degree of overfitting?
+
+### Conclusion
+I probably should have explored models with transformed variables and/or quadratic
+terms.  I'm suspicious of model 4, though it seems to be the best of the ones I made.
+There is something going on at extreme high values that should be looked into. 
